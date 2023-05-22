@@ -35,11 +35,14 @@ export const makeJobProcessor = ({
 }) => {
   const handleJob = async ({
     eventsNumber,
-    messages,
+    verifiedMessages,
   }: {
     eventsNumber: number
-    messages: ExitMessage[]
+    verifiedMessages: { validMessages: ExitMessage[]; pubkeys: string[] }
   }) => {
+    logger.info('verifiedMessages', verifiedMessages)
+
+    const messages = verifiedMessages.validMessages
     logger.info('Job started', {
       operatorId: config.OPERATOR_ID,
       stakingModuleId: config.STAKING_MODULE_ID,
@@ -47,8 +50,7 @@ export const makeJobProcessor = ({
     })
 
     // Resolving contract addresses on each job to automatically pick up changes without requiring a restart
-    await executionApi.resolveExitBusAddress()
-    await executionApi.resolveConsensusAddress()
+    await executionApi.resolveDepositNodeManagerAddress()
 
     const toBlock = await executionApi.latestBlockNumber()
     const fromBlock = toBlock - eventsNumber
@@ -66,11 +68,13 @@ export const makeJobProcessor = ({
       amount: eventsForEject.length,
     })
 
+    let lastRequestedValIx
     for (const [ix, event] of eventsForEject.entries()) {
       logger.info(`Handling exit ${ix + 1}/${eventsForEject.length}`, event)
-
+      lastRequestedValIx = event.validatorId
       try {
-        if (await consensusApi.isExiting(event.validatorPubkey)) {
+        await consensusApi.isExiting(event.pubkey)
+        if (await consensusApi.isExiting(event.pubkey)) {
           logger.info('Validator is already exiting(ed), skipping')
           continue
         }
@@ -83,18 +87,16 @@ export const makeJobProcessor = ({
         if (config.VALIDATOR_EXIT_WEBHOOK) {
           await webhookProcessor.send(config.VALIDATOR_EXIT_WEBHOOK, event)
         } else {
-          await messagesProcessor.exit(messages, event)
+          await messagesProcessor.exit(verifiedMessages, event)
         }
       } catch (e) {
-        logger.error(`Unable to process exit for ${event.validatorPubkey}`, e)
+        logger.error(`Unable to process exit for ${event.pubkey}`, e)
         metrics.exitActions.inc({ result: 'error' })
       }
     }
 
     logger.info('Updating exit messages left metrics from contract state')
     try {
-      const lastRequestedValIx =
-        await executionApi.lastRequestedValidatorIndex()
       metrics.updateLeftMessages(messages, lastRequestedValIx)
     } catch {
       logger.error(

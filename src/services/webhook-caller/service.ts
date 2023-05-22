@@ -11,8 +11,9 @@ export const makeWebhookProcessor = (
   const send = async (
     url: string,
     event: {
-      validatorIndex: string
-      validatorPubkey: string
+      validatorId: string
+      operator: string
+      pubkey: string
     }
   ) => {
     try {

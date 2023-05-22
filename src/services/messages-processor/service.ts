@@ -133,10 +133,12 @@ export const makeMessagesProcessor = ({
     return json
   }
 
-  const verify = async (messages: ExitMessage[]): Promise<ExitMessage[]> => {
+  const verify = async (
+    messages: ExitMessage[]
+  ): Promise<{ validMessages: ExitMessage[]; pubkeys: string[] }> => {
     if (!config.MESSAGES_LOCATION) {
       logger.debug('Skipping messages validation in webhook mode')
-      return []
+      return { validMessages: [], pubkeys: [] }
     }
 
     logger.info('Validating messages')
@@ -145,6 +147,7 @@ export const makeMessagesProcessor = ({
     const state = await consensusApi.state()
 
     const validMessages: ExitMessage[] = []
+    const pubkeys: string[] = []
 
     for (const [ix, m] of messages.entries()) {
       logger.info(`${ix + 1}/${messages.length}`)
@@ -226,6 +229,7 @@ export const makeMessagesProcessor = ({
       }
 
       validMessages.push(m)
+      pubkeys.push(validatorInfo.pubKey)
 
       metrics.exitMessages.inc({
         valid: 'true',
@@ -234,25 +238,27 @@ export const makeMessagesProcessor = ({
 
     logger.info('Finished validation', { validAmount: validMessages.length })
 
-    return validMessages
+    return { validMessages, pubkeys }
   }
 
   const exit = async (
-    messages: ExitMessage[],
-    event: { validatorPubkey: string; validatorIndex: string }
+    verifiedMessages: { validMessages: ExitMessage[]; pubkeys: string[] },
+    event: { pubkey: string; validatorId: string }
   ) => {
-    const message = messages.find(
-      (msg) => msg.message.validator_index === event.validatorIndex
+    const index = verifiedMessages.pubkeys.findIndex(
+      (pubkey) => pubkey === event.pubkey
     )
-
-    if (!message) {
+    if (index === -1) {
       logger.error(
-        'Validator needs to be exited but required message was not found / accessible!'
+        'Validator needs to be exited but required message was not found / accessible! Pubkey: ' +
+          event.pubkey
       )
       metrics.exitActions.inc({ result: 'error' })
       return
     }
 
+    const messages = verifiedMessages.validMessages
+    const message = messages[index]
     try {
       await consensusApi.exitRequest(message)
       logger.info(

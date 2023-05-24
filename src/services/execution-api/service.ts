@@ -172,7 +172,7 @@ export const makeExecutionApi = (
 
   const resolveDepositNodeManagerAddress = async () => {
     const func = ethers.utils.Fragment.from(
-      'function getAddress(bytes32 key) external view override returns (address r)'
+      'function getAddress(bytes32 key) external view returns (address)'
     )
     const iface = new ethers.utils.Interface([func])
     const sig = iface.encodeFunctionData(func.name, [

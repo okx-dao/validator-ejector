@@ -15,22 +15,15 @@ import {
   genericArrayOfStringsDTO,
 } from './dto.js'
 
-const ORACLE_FRAME_BLOCKS = 7200
+import { encodeFunctionCall, decodeParameters } from 'web3-eth-abi'
+import { Web3 } from 'web3'
 
 export type ExecutionApiService = ReturnType<typeof makeExecutionApi>
 
 export const makeExecutionApi = (
   request: ReturnType<typeof makeRequest>,
   logger: ReturnType<typeof makeLogger>,
-  {
-    EXECUTION_NODE,
-    LOCATOR_ADDRESS,
-    STAKING_MODULE_ID,
-    OPERATOR_ID,
-    ORACLE_ADDRESSES_ALLOWLIST,
-    DISABLE_SECURITY_DONT_USE_IN_PRODUCTION,
-  }: ConfigService,
-  { eventSecurityVerification }: MetricsService
+  { EXECUTION_NODE, LOCATOR_ADDRESS }: ConfigService
 ) => {
   const normalizedUrl = EXECUTION_NODE.endsWith('/')
     ? EXECUTION_NODE.slice(0, -1)
@@ -101,7 +94,7 @@ export const makeExecutionApi = (
 
   const logs = async (fromBlock: number, toBlock: number) => {
     const event = ethers.utils.Fragment.from(
-      'event SigningKeyExiting(uint256 indexed validatorId, address indexed operator, bytes pubkey)'
+      'event SigningKeyExiting(uint256 indexed index, address indexed operator, bytes pubkey)'
     )
     const iface = new ethers.utils.Interface([event])
     const eventTopic = iface.getEventTopic(event.name)
@@ -135,7 +128,7 @@ export const makeExecutionApi = (
     logger.info('Loaded ValidatorExitRequest events', { amount: result.length })
 
     const validatorsToEject: {
-      validatorId: string
+      index: number
       operator: string
       pubkey: string
     }[] = []
@@ -147,8 +140,8 @@ export const makeExecutionApi = (
 
       const parsedLog = iface.parseLog(log)
 
-      const [validatorId, operator, pubkey] = parsedLog.args as unknown as [
-        validatorId: ethers.BigNumber,
+      const [index, operator, pubkey] = parsedLog.args as unknown as [
+        index: ethers.BigNumber,
         operator: string,
         pubkey: string
       ]
@@ -161,7 +154,7 @@ export const makeExecutionApi = (
       }
 
       validatorsToEject.push({
-        validatorId: validatorId.toString(),
+        index: index.toNumber(),
         operator: operator,
         pubkey: pubkey,
       })
@@ -169,6 +162,8 @@ export const makeExecutionApi = (
 
     return validatorsToEject
   }
+
+  const web3 = new Web3(EXECUTION_NODE)
 
   const resolveDepositNodeManagerAddress = async () => {
     const func = ethers.utils.Fragment.from(
@@ -213,15 +208,43 @@ export const makeExecutionApi = (
 
       depositNodeManagerAddress = validated[0] // only returns one value
 
-      logger.info('Resolved Exit Bus contract address using the Locator', {
-        depositNodeManagerAddress,
-      })
+      logger.info(
+        'Resolved DepositNodeManager contract address using the Locator',
+        {
+          depositNodeManagerAddress,
+        }
+      )
     } catch (e) {
-      logger.error('Unable to resolve Exit Bus contract', e)
+      logger.error('Unable to resolve DepositNodeManager contract', e)
       throw new Error(
-        'Unable to resolve Exit Bus contract address using the Locator. Please make sure LOCATOR_ADDRESS is correct.'
+        'Unable to resolve DepositNodeManager contract address using the Locator. Please make sure LOCATOR_ADDRESS is correct.'
       )
     }
+  }
+
+  const getNodeValidatorByPubkey = async (pubkey: string) => {
+    const encodedData = encodeFunctionCall(
+      {
+        name: 'getNodeValidator',
+        type: 'function',
+        inputs: [{ type: 'bytes', name: 'pubkey' }],
+      },
+      [pubkey]
+    )
+    const returnData = await web3.eth.call({
+      to: depositNodeManagerAddress,
+      data: encodedData,
+    })
+    const decoded = decodeParameters(
+      ['uint256', 'address', 'uint8'],
+      returnData
+    )
+    const [index, operator, status] = Object.values(decoded) as [
+      bigint,
+      string,
+      bigint
+    ]
+    return { index: Number(index), operator, status: Number(status) }
   }
 
   return {
@@ -230,5 +253,6 @@ export const makeExecutionApi = (
     latestBlockNumber,
     logs,
     resolveDepositNodeManagerAddress,
+    getNodeValidatorByPubkey,
   }
 }

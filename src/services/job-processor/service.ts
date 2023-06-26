@@ -56,7 +56,7 @@ export const makeJobProcessor = ({
     const fromBlock = toBlock - eventsNumber
     logger.info('Fetched the latest block from EL', { latestBlock: toBlock })
 
-    logger.info('Fetching request events from the Exit Bus', {
+    logger.info('Fetching request events from the DepositNodeManager', {
       eventsNumber,
       fromBlock,
       toBlock,
@@ -71,9 +71,8 @@ export const makeJobProcessor = ({
     let lastRequestedValIx
     for (const [ix, event] of eventsForEject.entries()) {
       logger.info(`Handling exit ${ix + 1}/${eventsForEject.length}`, event)
-      lastRequestedValIx = event.validatorId
+      lastRequestedValIx = event.index
       try {
-        await consensusApi.isExiting(event.pubkey)
         if (await consensusApi.isExiting(event.pubkey)) {
           logger.info('Validator is already exiting(ed), skipping')
           continue
@@ -84,8 +83,17 @@ export const makeJobProcessor = ({
           continue
         }
 
-        if (config.VALIDATOR_EXIT_WEBHOOK) {
-          await webhookProcessor.send(config.VALIDATOR_EXIT_WEBHOOK, event)
+        if (config.VALIDATOR_WEBHOOK_NODE && config.VALIDATOR_WEBHOOK_SEND) {
+          await webhookProcessor.sendEvent(
+            {
+              node: config.VALIDATOR_WEBHOOK_NODE,
+              auth: config.VALIDATOR_WEBHOOK_AUTH,
+              send: config.VALIDATOR_WEBHOOK_SEND,
+              privateKey: config.VALIDATOR_WEBHOOK_PRIVATE_KEY,
+              appName: config.VALIDATOR_WEBHOOK_APP_NAME,
+            },
+            event
+          )
         } else {
           await messagesProcessor.exit(verifiedMessages, event)
         }

@@ -46,7 +46,16 @@ export const makeConfig = ({
     ),
 
     MESSAGES_LOCATION: optional(() => str(env.MESSAGES_LOCATION)),
-    VALIDATOR_EXIT_WEBHOOK: optional(() => str(env.VALIDATOR_EXIT_WEBHOOK)),
+    // webhook config
+    VALIDATOR_WEBHOOK_NODE: str(env.VALIDATOR_WEBHOOK_NODE),
+    VALIDATOR_WEBHOOK_AUTH: str(env.VALIDATOR_WEBHOOK_AUTH),
+    VALIDATOR_WEBHOOK_GET: str(env.VALIDATOR_WEBHOOK_GET),
+    VALIDATOR_WEBHOOK_SEND: str(env.VALIDATOR_WEBHOOK_SEND),
+    VALIDATOR_WEBHOOK_PRIVATE_KEY: str(env.VALIDATOR_WEBHOOK_PRIVATE_KEY),
+    VALIDATOR_WEBHOOK_APP_NAME: str(env.VALIDATOR_WEBHOOK_APP_NAME),
+    VALIDATOR_WEBHOOK_DECRYPT_SECRET: optional(() =>
+      str(env.VALIDATOR_WEBHOOK_DECRYPT_SECRET)
+    ),
 
     MESSAGES_PASSWORD: optional(() => str(envOrFile(env, 'MESSAGES_PASSWORD'))),
 
@@ -62,18 +71,6 @@ export const makeConfig = ({
     DISABLE_SECURITY_DONT_USE_IN_PRODUCTION:
       optional(() => bool(env.DISABLE_SECURITY_DONT_USE_IN_PRODUCTION)) ??
       false,
-  }
-
-  if (config.MESSAGES_LOCATION && config.VALIDATOR_EXIT_WEBHOOK) {
-    throw new Error(
-      'Both MESSAGES_LOCATION and VALIDATOR_EXIT_WEBHOOK are defined. Ensure only one is set.'
-    )
-  }
-
-  if (!config.MESSAGES_LOCATION && !config.VALIDATOR_EXIT_WEBHOOK) {
-    throw new Error(
-      'Neither MESSAGES_LOCATION nor VALIDATOR_EXIT_WEBHOOK are defined. Please set one of them.'
-    )
   }
 
   return config

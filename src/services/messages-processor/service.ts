@@ -243,7 +243,7 @@ export const makeMessagesProcessor = ({
 
   const exit = async (
     verifiedMessages: { validMessages: ExitMessage[]; pubkeys: string[] },
-    event: { pubkey: string; validatorId: string }
+    event: { pubkey: string; index: number }
   ) => {
     const index = verifiedMessages.pubkeys.findIndex(
       (pubkey) => pubkey === event.pubkey

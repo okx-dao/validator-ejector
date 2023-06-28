@@ -1,16 +1,16 @@
 <img src="https://user-images.githubusercontent.com/4752441/209329469-aee5d699-af5e-467b-9213-4d09b1a22012.png" width="50%" height="50%">
 
-# Lido Validator Ejector
+# DawnPool Validator Ejector
 
-Daemon service which loads LidoOracle events for validator exits and sends out exit messages when necessary.
+Daemon service which loads DepositNodeManager events for validator exits and sends out exit messages when necessary.
 
 On start, it will load events from a configurable amount of blocks behind and then poll for new events.
 
 ## Requirements
 
-- Folder of pre-signed exit messages as individual JSON files in either [spec format](https://github.com/lidofinance/validator-ejector/blob/d2e4db190935239e019618b948a1bd1cea20f88f/src/services/messages-processor/service.ts#L19-L25) (generic) or [ethdo output format](https://github.com/wealdtech/ethdo/blob/master/docs/usage.md#exit)
 - Execution node
 - Consensus node
+- Webhook node
 
 This service has to be run in a single instance as it expects to fulfil every request to exit. Each unfulfilled request (no exit message being present for required validator) will log an error.
 
@@ -30,7 +30,7 @@ Mode is activated by setting the MESSAGES_LOCATION variable.
 
 In this mode, Ejector will make a request to a specified endpoint when an exit needs to be made instead of submitting a pre-signed exit message to a CL node.
 
-Mode is activated by setting the VALIDATOR_EXIT_WEBHOOK variable.
+Mode is activated by setting the VALIDATOR_WEBHOOK_NODE variable.
 
 This allows NOs to implement JIT approach by offloading exiting logic to an external service and using the Ejector as a secure exit events reader.
 
@@ -38,10 +38,12 @@ On the endpoint, JSON will be POSTed with the following structure:
 
 ```json
 {
-  "validatorIndex": "123",
-  "validatorPubkey": "0x123"
+  "index": 123,
+  "operator": "0x1234...",
+  "pubkey": "0x1234..."
 }
 ```
+Note that `index` is the index of the contract rather than the index on chain.
 
 200 response from the endpoint will be counted as a successful exit, non-200 as a fail.
 
@@ -49,32 +51,37 @@ On the endpoint, JSON will be POSTed with the following structure:
 
 Options are configured via environment variables.
 
-| Variable                   | Required | Default/Example       | Description                                                                                                                                                                                                                                             |
-| -------------------------- | -------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| EXECUTION_NODE             | Yes      | http://1.2.3.4:8545   | Ethereum Execution Node endpoint                                                                                                                                                                                                                        |
-| CONSENSUS_NODE             | Yes      | http://1.2.3.4:5051   | Ethereum Consensus Node endpoint                                                                                                                                                                                                                        |
-| LOCATOR_ADDRESS            | Yes      | 0x123                 | Address of the Locator contract [Goerli](https://docs.lido.fi/deployed-contracts/goerli/) / [Mainnet](https://docs.lido.fi/deployed-contracts/)                                                                                                         |
-| STAKING_MODULE_ID          | Yes      | 123                   | Staking Module ID for which operator ID is set, currently only one exists - ([NodeOperatorsRegistry](https://github.com/lidofinance/lido-dao#contracts)) with id `1`                                                                                    |
-| OPERATOR_ID                | Yes      | 123                   | Operator ID in the Node Operators registry, easiest to get from Operators UI: [Goerli](https://operators.testnet.fi)/[Mainnet](https://operators.lido.fi)                                                                                               |
-| MESSAGES_LOCATION          | No       | messages              | Local folder or external storage bucket url to load json exit message files from. Required if you are using exit messages mode                                                                                                                          |
-| VALIDATOR_EXIT_WEBHOOK     | No       | http://webhook        | POST validator info to an endpoint instead of sending out an exit message in order to initiate an exit. Required if you are using webhook mode                                                                                                          |
-| ORACLE_ADDRESSES_ALLOWLIST | Yes      | ["0x123"]             | Allowed Oracle addresses to accept transactions from [Goerli](https://testnet.testnet.fi/#/lido-testnet-prater/0x24d8451bc07e7af4ba94f69acdd9ad3c6579d9fb/) / [Mainnet](https://mainnet.lido.fi/#/lido-dao/0x442af784a788a5bd6f42a01ebe9f287a871243fb/) |
-| MESSAGES_PASSWORD          | No       | password              | Password to decrypt encrypted exit messages with. Needed only if you encrypt your exit messages                                                                                                                                                         |
-| MESSAGES_PASSWORD_FILE     | No       | password_inside.txt   | Path to a file with password inside to decrypt exit messages with. Needed only if you have encrypted exit messages. If used, MESSAGES_PASSWORD (not MESSAGES_PASSWORD_FILE) needs to be added to LOGGER_SECRETS in order to be sanitized                |
-| BLOCKS_PRELOAD             | No       | 50000                 | Amount of blocks to load events from on start. Increase if daemon was not running for some time. Defaults to a week of blocks                                                                                                                           |
-| BLOCKS_LOOP                | No       | 900                   | Amount of blocks to load events from on every poll. Defaults to 3 hours of blocks                                                                                                                                                                       |
-| JOB_INTERVAL               | No       | 384000                | Time interval in milliseconds to run checks. Defaults to time of 1 epoch                                                                                                                                                                                |
-| HTTP_PORT                  | No       | 8989                  | Port to serve metrics and health check on                                                                                                                                                                                                               |
-| RUN_METRICS                | No       | false                 | Enable metrics endpoint                                                                                                                                                                                                                                 |
-| RUN_HEALTH_CHECK           | No       | true                  | Enable health check endpoint                                                                                                                                                                                                                            |
-| LOGGER_LEVEL               | No       | info                  | Severity level from which to start showing errors eg info will hide debug messages                                                                                                                                                                      |
-| LOGGER_FORMAT              | No       | simple                | Simple or JSON log output: simple/json                                                                                                                                                                                                                  |
-| LOGGER_SECRETS             | No       | ["MESSAGES_PASSWORD"] | JSON string array of either env var keys to sanitize in logs or exact values                                                                                                                                                                            |
-| DRY_RUN                    | No       | false                 | Run the service without actually sending out exit messages                                                                                                                                                                                              |
+| Variable                         | Required | Default/Example       | Description                                                                                                                                                                                                                              |
+|----------------------------------|----------|-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| EXECUTION_NODE                   | Yes      | http://1.2.3.4:8545   | Ethereum Execution Node endpoint                                                                                                                                                                                                         |
+| CONSENSUS_NODE                   | Yes      | http://1.2.3.4:5051   | Ethereum Consensus Node endpoint                                                                                                                                                                                                         |
+| LOCATOR_ADDRESS                  | Yes      | 0x123                 | Address of the Locator contract [Goerli](https://docs.lido.fi/deployed-contracts/goerli/) / [Mainnet](https://docs.lido.fi/deployed-contracts/)                                                                                          |
+| MESSAGES_LOCATION                | No       | messages              | Local folder or external storage bucket url to load json exit message files from. Required if you are using exit messages mode                                                                                                           |
+| MESSAGES_PASSWORD                | No       | password              | Password to decrypt encrypted exit messages with. Needed only if you encrypt your exit messages                                                                                                                                          |
+| MESSAGES_PASSWORD_FILE           | No       | password_inside.txt   | Path to a file with password inside to decrypt exit messages with. Needed only if you have encrypted exit messages. If used, MESSAGES_PASSWORD (not MESSAGES_PASSWORD_FILE) needs to be added to LOGGER_SECRETS in order to be sanitized |
+| BLOCKS_PRELOAD                   | No       | 50000                 | Amount of blocks to load events from on start. Increase if daemon was not running for some time. Defaults to a week of blocks                                                                                                            |
+| BLOCKS_LOOP                      | No       | 900                   | Amount of blocks to load events from on every poll. Defaults to 3 hours of blocks                                                                                                                                                        |
+| JOB_INTERVAL                     | No       | 384000                | Time interval in milliseconds to run checks. Defaults to time of 1 epoch                                                                                                                                                                 |
+| HTTP_PORT                        | No       | 8989                  | Port to serve metrics and health check on                                                                                                                                                                                                |
+| RUN_METRICS                      | No       | false                 | Enable metrics endpoint                                                                                                                                                                                                                  |
+| RUN_HEALTH_CHECK                 | No       | true                  | Enable health check endpoint                                                                                                                                                                                                             |
+| LOGGER_LEVEL                     | No       | info                  | Severity level from which to start showing errors eg info will hide debug messages                                                                                                                                                       |
+| LOGGER_FORMAT                    | No       | simple                | Simple or JSON log output: simple/json                                                                                                                                                                                                   |
+| LOGGER_SECRETS                   | No       | ["MESSAGES_PASSWORD"] | JSON string array of either env var keys to sanitize in logs or exact values                                                                                                                                                             |
+| DRY_RUN                          | No       | false                 | Run the service without actually sending out exit messages                                                                                                                                                                               |
+| IGNORE_FIRST_CERTIFICATION       | No       |                       | Used for develop because of self-signed certificate error                                                                                                                                                                                |
+| VALIDATOR_WEBHOOK_NODE           | Yes      | true                  | Webhook address                                                                                                                                                                                                                          |
+| VALIDATOR_WEBHOOK_AUTH           | Yes      | true                  | Webhook auth api                                                                                                                                                                                                                         |
+| VALIDATOR_WEBHOOK_GET            | Yes      | true                  | Webhook get validators api, not use                                                                                                                                                                                                      |
+| VALIDATOR_WEBHOOK_SEND           | Yes      | true                  | Webhook send exit message api                                                                                                                                                                                                            |
+| VALIDATOR_WEBHOOK_PRIVATE_KEY    | Yes      | true                  | Webhook auth private key                                                                                                                                                                                                                 |
+| VALIDATOR_WEBHOOK_APP_NAME       | Yes      | true                  | Webhook signing message                                                                                                                                                                                                                  |
+| VALIDATOR_WEBHOOK_DECRYPT_SECRET | No       | true                  | Webhook decrypt key, not use                                                                                                                                                                                                             |
+
 
 Messages can also be loaded from remote storages: AWS S3 and Google Cloud Storage.
 
-Simply set a url with an appropriate protocol in `MESSAGES_LOCATION`:
+Simply set an url with an appropriate protocol in `MESSAGES_LOCATION`:
 
 - `s3://` for S3
 - `gs://` for GCS

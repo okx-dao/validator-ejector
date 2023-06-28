@@ -10,7 +10,7 @@ export const makeApp = ({
   consensusApi,
   appInfoReader,
 }: Dependencies) => {
-  const { OPERATOR_ID, BLOCKS_PRELOAD, BLOCKS_LOOP, JOB_INTERVAL } = config
+  const { BLOCKS_PRELOAD, BLOCKS_LOOP, JOB_INTERVAL } = config
 
   const run = async () => {
     const version = await appInfoReader.getVersion()
@@ -24,10 +24,6 @@ export const makeApp = ({
 
     const messages = await messagesProcessor.load()
     const verifiedMessages = await messagesProcessor.verify(messages)
-
-    logger.info(
-      `Starting, searching only for requests for operator ${OPERATOR_ID}`
-    )
 
     logger.info(`Loading initial events for ${BLOCKS_PRELOAD} last blocks`)
     await job.once({ eventsNumber: BLOCKS_PRELOAD, verifiedMessages })

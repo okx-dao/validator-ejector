@@ -31,25 +31,12 @@ export const makeConfig = ({
       env.LOCATOR_ADDRESS,
       'Please, setup LOCATOR_ADDRESS address. Example: 0xXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
     ),
-    STAKING_MODULE_ID: str(
-      env.STAKING_MODULE_ID,
-      'Please, setup STAKING_MODULE_ID id. Example: 123'
-    ),
-    OPERATOR_ID: str(
-      env.OPERATOR_ID,
-      'Please, setup OPERATOR_ID id. Example: 123'
-    ),
-    ORACLE_ADDRESSES_ALLOWLIST: json_arr(
-      env.ORACLE_ADDRESSES_ALLOWLIST,
-      (oracles) => oracles.map(str),
-      'Please, setup ORACLE_ADDRESSES_ALLOWLIST. Example: ["0x123","0x123"]'
-    ),
-
     MESSAGES_LOCATION: optional(() => str(env.MESSAGES_LOCATION)),
     // webhook config
+    IGNORE_FIRST_CERTIFICATION: bool(env.IGNORE_FIRST_CERTIFICATION),
     VALIDATOR_WEBHOOK_NODE: str(env.VALIDATOR_WEBHOOK_NODE),
     VALIDATOR_WEBHOOK_AUTH: str(env.VALIDATOR_WEBHOOK_AUTH),
-    VALIDATOR_WEBHOOK_GET: str(env.VALIDATOR_WEBHOOK_GET),
+    VALIDATOR_WEBHOOK_GET: optional(() => str(env.VALIDATOR_WEBHOOK_GET)),
     VALIDATOR_WEBHOOK_SEND: str(env.VALIDATOR_WEBHOOK_SEND),
     VALIDATOR_WEBHOOK_PRIVATE_KEY: str(env.VALIDATOR_WEBHOOK_PRIVATE_KEY),
     VALIDATOR_WEBHOOK_APP_NAME: str(env.VALIDATOR_WEBHOOK_APP_NAME),

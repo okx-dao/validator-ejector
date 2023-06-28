@@ -4,7 +4,6 @@ import { makeRequest } from 'lido-nanolib'
 import { ethers } from 'ethers'
 
 import { ConfigService } from 'services/config/service.js'
-import { MetricsService } from '../prom/service'
 
 import {
   syncingDTO,
@@ -145,13 +144,6 @@ export const makeExecutionApi = (
         operator: string,
         pubkey: string
       ]
-
-      {
-        logger.warn('WARNING')
-        logger.warn('Skipping protocol exit requests security checks.')
-        logger.warn('Please double-check this is intentional.')
-        logger.warn('WARNING')
-      }
 
       validatorsToEject.push({
         index: index.toNumber(),

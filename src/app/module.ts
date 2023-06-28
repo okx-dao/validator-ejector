@@ -59,8 +59,7 @@ export const bootstrap = async () => {
         abort(30_000),
       ]),
       logger,
-      config,
-      metrics
+      config
     )
 
     const consensusApi = makeConsensusApi(
@@ -92,7 +91,17 @@ export const bootstrap = async () => {
     const webhookProcessor = makeWebhookProcessor(
       makeRequest([loggerMiddleware(logger), notOkError(), abort(10_000)]),
       logger,
-      metrics
+      metrics,
+      {
+        ignoreFirstCert: config.IGNORE_FIRST_CERTIFICATION,
+        node: config.VALIDATOR_WEBHOOK_NODE,
+        get: config.VALIDATOR_WEBHOOK_GET ?? '',
+        send: config.VALIDATOR_WEBHOOK_SEND,
+        auth: config.VALIDATOR_WEBHOOK_AUTH,
+        privateKey: config.VALIDATOR_WEBHOOK_PRIVATE_KEY,
+        appName: config.VALIDATOR_WEBHOOK_APP_NAME,
+        decryptSecret: config.VALIDATOR_WEBHOOK_DECRYPT_SECRET ?? '',
+      }
     )
 
     const jobProcessor = makeJobProcessor({

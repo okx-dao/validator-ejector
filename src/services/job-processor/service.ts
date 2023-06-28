@@ -43,11 +43,9 @@ export const makeJobProcessor = ({
     logger.info('verifiedMessages', verifiedMessages)
 
     const messages = verifiedMessages.validMessages
-    logger.info('Job started', {
-      operatorId: config.OPERATOR_ID,
-      stakingModuleId: config.STAKING_MODULE_ID,
-      loadedMessages: messages.length,
-    })
+    if (config.VALIDATOR_WEBHOOK_NODE) {
+      logger.info('Job started in webhook mode, do not need to load files')
+    }
 
     // Resolving contract addresses on each job to automatically pick up changes without requiring a restart
     await executionApi.resolveDepositNodeManagerAddress()
@@ -84,16 +82,7 @@ export const makeJobProcessor = ({
         }
 
         if (config.VALIDATOR_WEBHOOK_NODE && config.VALIDATOR_WEBHOOK_SEND) {
-          await webhookProcessor.sendEvent(
-            {
-              node: config.VALIDATOR_WEBHOOK_NODE,
-              auth: config.VALIDATOR_WEBHOOK_AUTH,
-              send: config.VALIDATOR_WEBHOOK_SEND,
-              privateKey: config.VALIDATOR_WEBHOOK_PRIVATE_KEY,
-              appName: config.VALIDATOR_WEBHOOK_APP_NAME,
-            },
-            event
-          )
+          await webhookProcessor.sendEvent(event)
         } else {
           await messagesProcessor.exit(verifiedMessages, event)
         }

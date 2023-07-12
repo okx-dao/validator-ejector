@@ -36,12 +36,17 @@ export const makeWebhookProcessor = (
     }
   }
 
+  const useHttps = () => {
+    return webhook.node.startsWith('https')
+  }
+
   let authToken: string
-  const agent = webhook.ignoreFirstCert
-    ? new https.Agent({
-        rejectUnauthorized: false, // 忽略证书验证，只在开发环境中使用
-      })
-    : undefined
+  const agent =
+    webhook.ignoreFirstCert && useHttps()
+      ? new https.Agent({
+          rejectUnauthorized: false, // 忽略证书验证，只在开发环境中使用
+        })
+      : undefined
 
   const authToNode = async (
     url: string,

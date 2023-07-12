@@ -93,7 +93,7 @@ export const makeExecutionApi = (
 
   const logs = async (fromBlock: number, toBlock: number) => {
     const event = ethers.utils.Fragment.from(
-      'event SigningKeyExiting(uint256 indexed index, address indexed operator, bytes pubkey)'
+      'event SigningKeyExit(uint256 indexed index, address indexed operator, bytes pubkey)'
     )
     const iface = new ethers.utils.Interface([event])
     const eventTopic = iface.getEventTopic(event.name)

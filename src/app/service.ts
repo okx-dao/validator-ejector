@@ -26,7 +26,7 @@ export const makeApp = ({
     const verifiedMessages = await messagesProcessor.verify(messages)
 
     logger.info(`Loading initial events for ${BLOCKS_PRELOAD} last blocks`)
-    await job.once({ eventsNumber: BLOCKS_PRELOAD, verifiedMessages })
+    await job.once({ scanBlocks: BLOCKS_PRELOAD, verifiedMessages })
 
     logger.info(
       `Starting ${
@@ -34,7 +34,7 @@ export const makeApp = ({
       } seconds polling for ${BLOCKS_LOOP} last blocks`
     )
 
-    job.pooling({ eventsNumber: BLOCKS_LOOP, verifiedMessages })
+    job.pooling({ scanBlocks: BLOCKS_LOOP, verifiedMessages })
   }
 
   return { run }

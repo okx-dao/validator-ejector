@@ -34,10 +34,10 @@ export const makeJobProcessor = ({
   metrics: MetricsService
 }) => {
   const handleJob = async ({
-    eventsNumber,
+    scanBlocks,
     verifiedMessages,
   }: {
-    eventsNumber: number
+    scanBlocks: number
     verifiedMessages: { validMessages: ExitMessage[]; pubkeys: string[] }
   }) => {
     logger.info('verifiedMessages', verifiedMessages)
@@ -51,11 +51,11 @@ export const makeJobProcessor = ({
     await executionApi.resolveDepositNodeManagerAddress()
 
     const toBlock = await executionApi.latestBlockNumber()
-    const fromBlock = toBlock - eventsNumber
+    const fromBlock = toBlock - scanBlocks
     logger.info('Fetched the latest block from EL', { latestBlock: toBlock })
 
     logger.info('Fetching request events from the DepositNodeManager', {
-      eventsNumber,
+      scanBlocks: scanBlocks,
       fromBlock,
       toBlock,
     })
